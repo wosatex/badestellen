@@ -1,0 +1,48 @@
+name: Badedaten aktualisieren
+
+on:
+  schedule:
+    - cron: "10 5 * * *"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: badewasser
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Daten holen und umrechnen
+        run: node scripts/build-data.mjs --out www/data/badewasser.json
+
+      - name: Änderung committen
+        run: |
+          git config user.name "badewasser-bot"
+          git config user.email "actions@github.com"
+          git add www/data/badewasser.json
+          if git diff --staged --quiet; then
+            echo "Keine neuen Messwerte."
+          else
+            git commit -m "Badedaten $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+      - uses: actions/deploy-pages@v4
