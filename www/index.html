@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Badewasser Berlin &amp; Brandenburg</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Wasserqualität der Badestellen in Berlin und Brandenburg auf einer klaren Skala. Amtliche Daten von Lageso und LAVG.">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#0C3D48">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+
+<!-- iOS: Homescreen-Symbol und Vollbild ohne Safari-Leisten -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Badewasser">
+</head>
+<body>
+
+<header class="head">
+  <div class="head-row">
+    <h1 class="wordmark">Bade<span>wasser</span><br>Berlin<span> &amp; Brandenburg</span></h1>
+    <button class="refresh" id="refresh" type="button">Aktualisieren</button>
+  </div>
+  <p class="stand" id="stand">Daten werden geladen …</p>
+  <div id="banners"></div>
+</header>
+
+<nav class="lands" id="lands" role="group" aria-label="Bundesland"></nav>
+
+<section class="hero" id="hero"></section>
+
+<div class="controls">
+  <input class="search" id="search" type="search" placeholder="Badestelle oder See suchen" aria-label="Badestelle suchen" autocomplete="off">
+  <div class="chips" id="chips" role="group" aria-label="Sortierung"></div>
+  <p class="hint" id="hint" hidden></p>
+</div>
+
+<main class="list" id="list" aria-live="polite"></main>
+
+<section class="method" id="methode">
+  <h2>Zwei Länder, zwei Datenlagen</h2>
+  <p>Die App zieht zwei amtliche Quellen zusammen. Sie liefern unterschiedlich viel, deshalb sieht die Bewertung
+     unterschiedlich aus – eine gemeinsame Zahl wäre eine Scheingenauigkeit.</p>
+
+  <h3>Berlin: berechnete Bewertung</h3>
+  <p>Das Lageso veröffentlicht pro Badestelle alle Messwerte der Saison als CSV. Daraus rechnet die App eine Zahl.
+     Jede Stelle startet bei 100, abgezogen wird für:</p>
+  <ul>
+    <li><strong>E. coli und Enterokokken</strong> – gestaffelt nach der EU-Badegewässerrichtlinie (2006/7/EG) für Binnengewässer, bis 48 Punkte</li>
+    <li><strong>Blaualgen</strong> – als Chlorophyll a, nach den UBA-Leitwerten 40 und 100 µg/l, bis 42 Punkte</li>
+    <li><strong>Sichttiefe</strong> – bis 18 Punkte unter 0,5 m</li>
+    <li><strong>Coliforme Bakterien</strong> – bis 7 Punkte</li>
+    <li><strong>Amtliche Warnhinweise</strong> – 18 Punkte, ein Zustandshinweis 5 Punkte</li>
+  </ul>
+  <p>Die amtliche Ampel begrenzt das Ergebnis: bei <strong>gelb</strong> höchstens 58 Punkte, bei <strong>rot</strong>
+     höchstens 25. Die Bewertung fällt also nie besser aus als die des Amts.</p>
+
+  <h3>Brandenburg: amtliche Einstufung</h3>
+  <p>Der KML-Export des LAVG enthält Messdatum, Wassertemperatur, Sichttiefe, eine Bemerkung und die fünfstufige
+     Beurteilung – aber keine Keimzahlen. Die stehen nur auf den Einzelseiten der Badestellen. Deshalb zeigt die App
+     hier die amtliche Einstufung unverändert und verlinkt für die Laborwerte auf die Detailseite.</p>
+
+  <p class="method-note">Ein Skript auf dem Server holt beide Quellen einmal täglich und legt sie als eine Datei ab.
+     Die App lädt nur diese Datei und behält sie im Offline-Speicher – am See funktioniert sie also auch ohne Empfang.
+     Wie alt die Daten sind, steht immer oben im Kopf.</p>
+
+  <p class="method-note">Messwerte sind eine Momentaufnahme. In Berlin wird alle ein bis zwei Wochen beprobt, in
+     Brandenburg alle zwei bis vier Wochen. Nach Starkregen oder in Hitzeperioden kann sich die Lage innerhalb von
+     Stunden ändern. Entfernungen sind Luftlinie und ungefähr. Diese Skala ist eine Lesehilfe, keine Behördenauskunft.</p>
+
+  <p class="method-note" id="quellen"></p>
+</section>
+
+<div class="ios-tip" id="iosTip" hidden>
+  <p><strong>Auf den Homescreen legen:</strong> in Safari unten auf <span class="share">Teilen</span> tippen,
+     dann „Zum Home-Bildschirm“. Danach startet die App im Vollbild und funktioniert offline.</p>
+  <button type="button" id="iosTipClose" aria-label="Hinweis schließen">Verstanden</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
