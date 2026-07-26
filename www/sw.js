@@ -2,7 +2,7 @@
    Hülle aus dem Cache, Daten aus dem Netz mit Cache als Rückfall.
    VERSION bei jeder Änderung an den Dateien unten hochzählen. */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL = `bw-shell-${VERSION}`;
 const DATA = `bw-data-${VERSION}`;
 const TILES = "bw-tiles"; // ohne Versionsnummer: Kartenkacheln überleben App-Updates
