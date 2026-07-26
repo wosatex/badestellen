@@ -2,9 +2,10 @@
    Hülle aus dem Cache, Daten aus dem Netz mit Cache als Rückfall.
    VERSION bei jeder Änderung an den Dateien unten hochzählen. */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL = `bw-shell-${VERSION}`;
 const DATA = `bw-data-${VERSION}`;
+const TILES = "bw-tiles"; // ohne Versionsnummer: Kartenkacheln überleben App-Updates
 
 const SHELL_FILES = [
   "./",
@@ -16,9 +17,17 @@ const SHELL_FILES = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon-180.png",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
 ];
 
 const DATA_PATH = "data/badewasser.json";
+const TILE_HOST = "tile.openstreetmap.org";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -32,7 +41,7 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((k) => k.startsWith("bw-") && k !== SHELL && k !== DATA).map((k) => caches.delete(k))
+        keys.filter((k) => k.startsWith("bw-") && k !== SHELL && k !== DATA && k !== TILES).map((k) => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
@@ -63,6 +72,27 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+
+  // Kartenkacheln: einmal gesehen, bleiben sie im eigenen Cache liegen.
+  // Ein Kachel-Bild ändert sich für dieselbe Position praktisch nie,
+  // deshalb genügt "einmal laden", statt bei jedem Aufruf erneut zu fragen.
+  if (url.hostname === TILE_HOST) {
+    e.respondWith(
+      caches.open(TILES).then(async (cache) => {
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        try {
+          const res = await fetch(req);
+          if (res && res.ok) cache.put(req, res.clone());
+          return res;
+        } catch (err) {
+          return new Response(null, { status: 504, statusText: "Kachel offline nicht verfügbar" });
+        }
+      })
+    );
+    return;
+  }
+
   if (url.origin !== self.location.origin) return; // amtliche Seiten nie abfangen
 
   // Datendatei: möglichst frisch, sonst der letzte bekannte Stand

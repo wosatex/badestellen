@@ -17,7 +17,8 @@ const lvlOf = (l) => BB_LEVELS[l] || BB_UNKNOWN;
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 
 let DATA = null;
-const state = { land: "alle", q: "", sort: "score", issues: false, open: null, geo: null, geoState: "idle" };
+const state = { land: "alle", q: "", sort: "score", issues: false, open: null, geo: null, geoState: "idle", view: "list" };
+let map = null, markerLayer = null, mapFitted = null;
 
 /* ------------------------------ Helfer ----------------------------- */
 
@@ -147,8 +148,29 @@ function render() {
   renderLands();
   renderHero();
   renderChips();
-  renderList();
+  renderViewToggle();
+  renderResults();
   renderQuellen();
+}
+
+/* Aktualisiert je nach aktiver Ansicht die Liste oder die Kartenmarker,
+   ohne die jeweils andere Ansicht unnötig neu aufzubauen. */
+function renderResults() {
+  if (state.view === "map") updateMapMarkers();
+  else renderList();
+}
+
+function renderViewToggle() {
+  $("viewtoggle").querySelectorAll(".vt").forEach((b) => b.classList.toggle("on", b.dataset.view === state.view));
+  const onMap = state.view === "map";
+  $("list").hidden = onMap;
+  $("mapwrap").hidden = !onMap;
+  if (onMap) {
+    initMap();
+    requestAnimationFrame(() => map && map.invalidateSize());
+    updateMapMarkers();
+    fitMapIfNeeded();
+  }
 }
 
 function renderHead() {
@@ -270,6 +292,82 @@ function renderList() {
     return;
   }
   $("list").innerHTML = list.map((s) => (s.land === "BE" ? cardBE(s) : cardBB(s))).join("");
+}
+
+/* -------------------------------- Karte ----------------------------
+ * Leaflet ist lokal mitgeliefert (www/vendor/leaflet), keine Cloud-API
+ * nötig. Die Kartenkacheln selbst kommen von OpenStreetMap und
+ * brauchen eine Verbindung; die Badestellen-Daten sind schon vorher
+ * geladen und funktionieren unabhängig davon offline. */
+
+function initMap() {
+  if (map || typeof L === "undefined") return;
+  map = L.map("map", { attributionControl: true, zoomControl: true }).setView([52.48, 13.5], 9);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+
+  // Leaflet stoppt Klicks innerhalb eines Popups, damit sie nicht als
+  // Kartenklick durchschlagen. Der globale Klick-Delegator in main.js
+  // sieht den "Details ansehen"-Button deshalb nie – hier extra binden.
+  map.on("popupopen", (e) => {
+    const btn = e.popup.getElement()?.querySelector("[data-jump]");
+    if (btn) btn.addEventListener("click", () => jumpToCard(btn.dataset.jump));
+  });
+}
+
+function pinIcon(color, label) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="bw-pin" style="background:${color}"><b>${esc(label)}</b></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 26],
+    popupAnchor: [0, -24],
+  });
+}
+
+function bbGlyph(lvl) {
+  if (lvl === 1) return "✓";
+  if (lvl === 4 || lvl === 5) return "✕";
+  return "!";
+}
+
+function popupHtml(s) {
+  const z = s.land === "BE" ? zoneOf(s.zone) : lvlOf(s.lvl);
+  const verdict = s.land === "BE" ? (s.reasons[0]?.t || z.verb) : z.verb;
+  return `
+    <span class="pop-name">${esc(s.name)}</span>
+    <span class="pop-sub">${esc(s.gew || (s.land === "BE" ? "Berlin" : "Brandenburg"))}</span>
+    <span class="pop-verdict"><strong style="color:${z.c}">${z.label}</strong> · ${esc(verdict)}</span>
+    <button type="button" class="pop-btn" data-jump="${esc(s.id)}">Details ansehen</button>
+  `;
+}
+
+function updateMapMarkers() {
+  if (!map || !markerLayer || !DATA) return;
+  markerLayer.clearLayers();
+  for (const s of visible()) {
+    if (s.lat == null || s.lon == null) continue;
+    const color = s.land === "BE" ? zoneOf(s.zone).c : lvlOf(s.lvl).c;
+    const label = s.land === "BE" ? (s.score ?? "–") : bbGlyph(s.lvl);
+    L.marker([s.lat, s.lon], { icon: pinIcon(color, label) })
+      .bindPopup(popupHtml(s), { closeButton: false })
+      .addTo(markerLayer);
+  }
+}
+
+/* Beim ersten Öffnen und bei jedem Wechsel des Bundeslandes neu auf
+   die sichtbaren Punkte zoomen; beim bloßen Tippen/Sortieren bleibt
+   die Kartenposition stehen, die der Person gerade passt. */
+function fitMapIfNeeded() {
+  if (!map || !DATA || mapFitted === state.land) return;
+  const pts = DATA.sites.filter((s) => (state.land === "alle" || s.land === state.land) && s.lat != null && s.lon != null);
+  if (pts.length) {
+    map.fitBounds(L.latLngBounds(pts.map((s) => [s.lat, s.lon])), { padding: [24, 24] });
+    mapFitted = state.land;
+  }
 }
 
 /* ------------------------------ Karten ----------------------------- */
@@ -434,32 +532,37 @@ function renderQuellen() {
 
 /* ----------------------------- Bedienung --------------------------- */
 
+function jumpToCard(id) {
+  state.q = ""; state.issues = false; $("search").value = "";
+  if (state.view !== "list") { state.view = "list"; renderViewToggle(); }
+  state.open = id; renderList();
+  const safe = (window.CSS && CSS.escape) ? CSS.escape(id) : id.replace(/["\\]/g, "\\$&");
+  const card = document.querySelector(`.card[data-id="${safe}"]`);
+  if (card) {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("flash");
+    setTimeout(() => card.classList.remove("flash"), 2300);
+  }
+}
+
 document.addEventListener("click", (e) => {
   const t = (sel) => e.target.closest(sel);
   let el;
   if ((el = t("[data-land]"))) { state.land = el.dataset.land; render(); }
-  else if ((el = t("[data-sort]"))) { state.sort = el.dataset.sort; renderChips(); renderList(); }
-  else if (t("[data-issues]")) { state.issues = !state.issues; renderChips(); renderList(); }
+  else if ((el = t("[data-view]"))) { state.view = el.dataset.view; renderViewToggle(); }
+  else if ((el = t("[data-sort]"))) { state.sort = el.dataset.sort; renderChips(); renderResults(); }
+  else if (t("[data-issues]")) { state.issues = !state.issues; renderChips(); renderResults(); }
   else if (t("[data-near]")) { askGeo(); }
   else if (t("[data-reset]")) { state.q = ""; state.issues = false; state.land = "alle"; $("search").value = ""; render(); }
   else if ((el = t("[data-toggle]"))) {
     state.open = state.open === el.dataset.toggle ? null : el.dataset.toggle;
     renderList();
   } else if ((el = t("[data-jump]"))) {
-    const id = el.dataset.jump;
-    state.q = ""; state.issues = false; $("search").value = "";
-    state.open = id; renderList();
-    const safe = (window.CSS && CSS.escape) ? CSS.escape(id) : id.replace(/["\\]/g, "\\$&");
-    const card = document.querySelector(`.card[data-id="${safe}"]`);
-    if (card) {
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-      card.classList.add("flash");
-      setTimeout(() => card.classList.remove("flash"), 2300);
-    }
+    jumpToCard(el.dataset.jump);
   }
 });
 
-$("search").addEventListener("input", (e) => { state.q = e.target.value; renderList(); });
+$("search").addEventListener("input", (e) => { state.q = e.target.value; renderResults(); });
 $("refresh").addEventListener("click", load);
 
 function askGeo() {
@@ -509,9 +612,12 @@ if ("serviceWorker" in navigator) {
   // Verhindert, dass ein einmal installierter Service Worker eine veraltete
   // sw.js/app.css/app.js aus dem HTTP-Cache weiterverwendet, und lädt die
   // Seite automatisch einmal neu, sobald eine neue Version übernommen hat.
+  // Beim allerersten Besuch gibt es noch keinen Controller zum Ablösen –
+  // dann NICHT neu laden, sonst blinkt die Seite jedem Erstbesucher einmal.
+  const hadController = !!navigator.serviceWorker.controller;
   let refreshed = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshed) return;
+    if (!hadController || refreshed) return;
     refreshed = true;
     location.reload();
   });
