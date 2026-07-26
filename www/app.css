@@ -115,6 +115,7 @@ a{color:var(--deep)}
 
 /* ------------------------------ Liste ------------------------------ */
 .list{padding:14px var(--pad) 0;display:flex;flex-direction:column;gap:9px}
+.list[hidden]{display:none}
 .empty{padding:26px 0;color:var(--ink2);font-size:14px}
 .linky{background:none;border:none;padding:0;color:var(--deep);text-decoration:underline;font:inherit}
 .skeleton{height:104px;border-radius:12px;background:linear-gradient(100deg,#EDF2F3 30%,#F7FAFA 50%,#EDF2F3 70%);
