@@ -118,6 +118,13 @@ a{color:var(--deep)}
 .tag.temp{border-color:#B5D2D6;background:#EAF4F5;color:#0D5C63}
 .tag.capped{border-color:#D9C06A;background:#FAF3D9;color:#7A6410}
 .tag.alarm{border-color:#E2B4B4;background:#FBECEC;color:#A32C2C}
+.tag.dogtag{font-weight:600}
+.tag.dogtag.mid{border-color:#E0C79A;background:#FBF2E2;color:#8A6414}
+.tag.dogtag.bad{border-color:#E2B4B4;background:#FBECEC;color:#A32C2C}
+.notice.dognotice{display:flex;align-items:flex-start;gap:0}
+.notice.dognotice.mid{background:#FBF2E2;color:#6B4B0D}
+.notice.dognotice.bad{background:#FBECEC;color:#7C2222}
+.notice.dognotice strong{display:inline-flex;align-items:center;font-weight:700}
 .tag.be{border-color:#B8C6CB;background:#EDF2F3;color:#3B535E}
 .tag.bb{border-color:#C3C9B4;background:#F1F3EA;color:#54603C}
 .chev{flex:none;font-family:var(--mono);font-size:19px;color:var(--ink2);line-height:1;padding-top:4px;width:14px;text-align:right}
@@ -184,7 +191,6 @@ a{color:var(--deep)}
 .ios-tip{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20;
   background:var(--ink);color:#fff;border-radius:14px;padding:14px 15px;display:flex;gap:12px;align-items:center;
   box-shadow:0 8px 26px rgba(12,37,48,.3)}
-.ios-tip[hidden]{display:none}
 .ios-tip p{margin:0;font-size:12.5px;line-height:1.45;flex:1}
 .ios-tip strong{font-weight:700}
 .ios-tip .share{border:1px solid rgba(255,255,255,.45);border-radius:4px;padding:0 4px}
