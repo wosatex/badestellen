@@ -506,8 +506,19 @@ function askGeo() {
 /* --------------------------- Service Worker ------------------------ */
 
 if ("serviceWorker" in navigator) {
+  // Verhindert, dass ein einmal installierter Service Worker eine veraltete
+  // sw.js/app.css/app.js aus dem HTTP-Cache weiterverwendet, und lädt die
+  // Seite automatisch einmal neu, sobald eine neue Version übernommen hat.
+  let refreshed = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshed) return;
+    refreshed = true;
+    location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then((reg) => reg.update().catch(() => {}))
+      .catch(() => {});
   });
 }
 
