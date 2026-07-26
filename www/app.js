@@ -72,6 +72,47 @@ const num = (raw) => {
 const rankOf = (s) => (s.land === "BE" ? (s.score == null ? -1 : s.score) : lvlOf(s.lvl).rank);
 const isIssue = (s) => (s.land === "BE" ? s.score != null && s.score < 70 : s.lvl != null && s.lvl >= 2);
 
+/* -------------------- Blaualgen: Warnung für Hunde ------------------
+ * Cyanobakterien (Blaualgen) können für Hunde giftig bis tödlich sein,
+ * schon bei Kontakt mit dem Fell oder wenig Schlucken. Ab 10 µg/l
+ * Chlorophyll a (Stufe „leicht erhöht") wird deshalb gewarnt, ab
+ * 40 µg/l („erhöht"/„stark erhöht") in der stärkeren Farbe. */
+const ICO_WARN =
+  `<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-1.5px;margin-right:2px">
+    <path d="M12 3.3 22.3 20.6H1.7Z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+    <line x1="12" y1="9.4" x2="12" y2="14.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+    <circle cx="12" cy="17.6" r="1.15" fill="currentColor"/>
+  </svg>`;
+const ICO_PAW =
+  `<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-2px;margin-right:3px">
+    <ellipse cx="12" cy="17" rx="6.3" ry="5.2" fill="currentColor"/>
+    <circle cx="5.1" cy="8.7" r="2.55" fill="currentColor"/>
+    <circle cx="10.6" cy="5.3" r="2.65" fill="currentColor"/>
+    <circle cx="16.4" cy="6.2" r="2.55" fill="currentColor"/>
+    <circle cx="20.3" cy="10.7" r="2.25" fill="currentColor"/>
+  </svg>`;
+
+function dogRisk(chla) {
+  if (chla == null || !isFinite(chla)) return null;
+  if (chla >= 40) return { cls: "bad", c: "#A32C2C", bg: "#FBECEC", bd: "#E2B4B4" };
+  if (chla >= 10) return { cls: "mid", c: "#8A6414", bg: "#FBF2E2", bd: "#E0C79A" };
+  return null;
+}
+function dogTag(chla) {
+  const r = dogRisk(chla);
+  if (!r) return "";
+  return `<span class="tag dogtag ${r.cls}" title="Blaualgen können für Hunde giftig sein">${ICO_WARN}${ICO_PAW}Hunde</span>`;
+}
+function dogNotice(chla) {
+  const r = dogRisk(chla);
+  if (!r) return "";
+  return `<p class="notice dognotice ${r.cls}">
+    <strong>${ICO_WARN}${ICO_PAW}Für Hunde giftig:</strong> Blaualgen (Cyanobakterien) können bei Hunden schon durch
+    Schlecken am Fell oder wenig Schlucken zu schweren Vergiftungen führen. Tiere hier nicht schwimmen oder trinken
+    lassen und das Fell danach gründlich abspülen.
+  </p>`;
+}
+
 /* ------------------------------ Laden ------------------------------ */
 
 async function load() {
@@ -255,7 +296,7 @@ function cardBE(s) {
         <span class="card-sub">${esc(s.gew)}${s.dist != null ? ` · ${s.dist < 10 ? s.dist.toFixed(1) : Math.round(s.dist)} km` : ""}</span>
         <span class="card-bar"><i style="width:${s.score ?? 0}%;background:${z.c}"></i></span>
         <span class="card-verdict tight"><strong style="color:${z.c}">${z.label}</strong> · ${esc(s.reasons[0]?.t || z.verb)}</span>
-        ${metaTags(s, `${s.capped ? `<span class="tag capped">Amt: ${esc(s.color)}</span>` : ""}${s.warn ? `<span class="tag alarm">Warnhinweis</span>` : ""}`)}
+        ${metaTags(s, `${s.capped ? `<span class="tag capped">Amt: ${esc(s.color)}</span>` : ""}${s.warn ? `<span class="tag alarm">Warnhinweis</span>` : ""}${dogTag(num(s.values.chla))}`)}
       </span>
       <span class="chev" aria-hidden="true">${open ? "–" : "+"}</span>
     </button>
@@ -309,6 +350,7 @@ function bodyBE(s) {
   return `<div class="card-body">
     ${s.warn ? `<p class="notice alarm"><strong>Warnhinweis des Lageso:</strong> ${esc(s.warn)}</p>` : ""}
     ${s.info ? `<p class="notice"><strong>Hinweis:</strong> ${esc(s.info)}</p>` : ""}
+    ${dogNotice(ch)}
     <div class="metrics">
       ${metric("E. coli", v.ecoli, "KBE/100 ml",
         ec == null ? NA : ec > 1000 ? WORST : ec > 500 ? BAD : ec > 100 ? MID : OK,
